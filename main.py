@@ -1,11 +1,17 @@
 
+
+# Standard library imports
 import os
 import time
 import glob
 import multiprocessing
 import concurrent.futures
+
+# Third-party imports
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Local imports
 from filters import process_single_image, process_single_image_sequential
 
 INPUT_DIR = './input_images'
@@ -13,135 +19,123 @@ OUTPUT_DIR = './output_images'
 
 def setup_dirs():
 
+    # Make sure the output directory exists
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
-    # Clear output directory to ensure fair timing
+    # Remove all files in the output directory before each run
     for f in glob.glob(os.path.join(OUTPUT_DIR, '*')):
         os.remove(f)
 
 def get_image_files():
+    # Get all jpg files in the input directory
     return glob.glob(os.path.join(INPUT_DIR, '*.jpg'))
 
 def run_benchmark_sequential(files):
 
     setup_dirs()
     start = time.time()
-    
+    # Process each image one by one (no parallelism)
     for f in files:
         process_single_image_sequential(f, OUTPUT_DIR)
-            
-    return time.time() - start
+    elapsed = time.time() - start
+    return elapsed
 
 def run_benchmark_multiprocessing(files, num_workers):
 
     setup_dirs()
     start = time.time()
-    
-    # Create persistent pool for all image processing
+    # Use a process pool to process each image (pixel-level parallelism inside each image)
     with multiprocessing.Pool(processes=num_workers) as pool:
         for f in files:
-            # Each image is processed with pixel-level parallelization
             process_single_image(f, OUTPUT_DIR, pool, num_workers)
-            
-    return time.time() - start
+    elapsed = time.time() - start
+    return elapsed
 
 def run_benchmark_futures(files, num_workers):
     setup_dirs()
     start = time.time()
-    
-    # Create the executor ONCE, like you did with the Pool
+    # Use ProcessPoolExecutor for pixel-level parallelism
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
         for f in files:
-            # Pass the executor itself as the 'pool' argument
-            # Note: Executor.map returns an iterator, but your filter loop handles that.
             process_single_image(f, OUTPUT_DIR, executor, num_workers)
-            
-    return time.time() - start
+    elapsed = time.time() - start
+    return elapsed
 
 # === IMAGE-LEVEL PARALLELISM (Alternative Strategy) ===
 # Process multiple images concurrently instead of parallelizing within each image
 
 def run_benchmark_multiprocessing_image_level(files, num_workers):
-    """Image-level parallelism: Process multiple images in parallel.
-    Each image is processed sequentially, but multiple images run concurrently.
-    Lower IPC overhead compared to pixel-level parallelism."""
+    # Image-level parallelism: each process handles a whole image
     setup_dirs()
     start = time.time()
-    
     with multiprocessing.Pool(processes=num_workers) as pool:
-        # Process multiple images in parallel using starmap
         pool.starmap(process_single_image_sequential, [(f, OUTPUT_DIR) for f in files])
-            
-    return time.time() - start
+    elapsed = time.time() - start
+    return elapsed
 
 def run_benchmark_futures_image_level(files, num_workers):
-    """Image-level parallelism using concurrent.futures.
-    Process multiple images in parallel, each processed sequentially."""
+    # Image-level parallelism using concurrent.futures
     setup_dirs()
     start = time.time()
-    
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-        # Use list() to force execution of all tasks
         list(executor.map(lambda f: process_single_image_sequential(f, OUTPUT_DIR), files))
-            
-    return time.time() - start
+    elapsed = time.time() - start
+    return elapsed
 
 
 if __name__ == "__main__":
+    # Get all input images
     files = get_image_files()
     num_imgs = len(files)
-    
+
     if num_imgs == 0:
-        print("Error: No images found in input_images/.")
-        print("Please add .jpg images to the input_images/ directory.")
+        print("No images found in the input_images folder.")
+        print("Please add some .jpg images to the input_images directory and try again.")
         exit(1)
 
-    print("="*80)
-    print("PARALLEL IMAGE PROCESSING BENCHMARK")
-    print("="*80)
-    print(f"Dataset Size: {num_imgs} images")
-    print(f"Physical Cores Available: {multiprocessing.cpu_count()}")
-    print(f"Input Directory: {INPUT_DIR}")
-    print(f"Output Directory: {OUTPUT_DIR}")
-    
-    # 1. Run Sequential Baseline
-    print("\n" + "="*80)
-    print("PHASE 1: SEQUENTIAL BASELINE (No Parallelization)")
-    print("="*80)
-    print("Running sequential processing...")
-    t_seq = run_benchmark_sequential(files)
-    print(f"Sequential Time: {t_seq:.4f} seconds")
-    print(f"Average per image: {t_seq/num_imgs:.4f} seconds")
+    print("=" * 60)
+    print("IMAGE PROCESSING PARALLELISM BENCHMARK")
+    print("=" * 60)
+    print(f"Number of images: {num_imgs}")
+    print(f"CPU cores available: {multiprocessing.cpu_count()}")
+    print(f"Input folder: {INPUT_DIR}")
+    print(f"Output folder: {OUTPUT_DIR}")
 
-    # 2. Run Parallel Experiments with Multiple Worker Counts
-    # Test with 1, 2, 4, 8, and 16 workers for comprehensive scalability analysis
+    # Run the sequential version first
+    print("\n" + "-" * 60)
+    print("Step 1: Sequential Processing (no parallelism)")
+    print("-" * 60)
+    print("Processing images one by one...")
+    t_seq = run_benchmark_sequential(files)
+    print(f"Total time (sequential): {t_seq:.4f} seconds")
+    print(f"Average time per image: {t_seq/num_imgs:.4f} seconds")
+
+    # Try different numbers of workers for parallel runs
     worker_counts = [1, 2, 4, 8]
     if multiprocessing.cpu_count() >= 16:
         worker_counts.append(16)
-    
-    # Results structure: {strategy: {paradigm: {workers: metrics}}}
+
+    # Store results for each method
     results = {
         'Pixel-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}},
         'Image-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}}
     }
 
-    print("\n" + "="*80)
-    print("PHASE 2: PARALLEL PROCESSING BENCHMARKS")
-    print("="*80)
-    print("\nTesting TWO parallelization strategies:")
-    print("  1. PIXEL-LEVEL: Split each image into chunks, process chunks in parallel")
-    print("  2. IMAGE-LEVEL: Process multiple images in parallel")
-    print("\n" + "-"*80)
+    print("\n" + "-" * 60)
+    print("Step 2: Parallel Processing Benchmarks")
+    print("-" * 60)
+    print("Testing two parallelization strategies:")
+    print("  1. Pixel-level: split each image into chunks and process chunks in parallel")
+    print("  2. Image-level: process multiple images at the same time")
 
     for w in worker_counts:
-        print(f"\n{'='*80}")
-        print(f"TESTING WITH {w} WORKERS")
-        print(f"{'='*80}")
-        
-        # Strategy 1: PIXEL-LEVEL PARALLELISM (existing approach)
-        print(f"\n--- PIXEL-LEVEL PARALLELISM (chunk-based) ---")
-        
-        print(f"Testing multiprocessing.Pool (pixel-level) with {w} workers...")
+        print(f"\n{'='*40}")
+        print(f"Testing with {w} worker(s)")
+        print(f"{'='*40}")
+
+        # Pixel-level parallelism
+        print("\n[Pixel-level parallelism]")
+        print(f"multiprocessing.Pool with {w} workers...")
         t_mp_pixel = run_benchmark_multiprocessing(files, w)
         speedup_mp_pixel = t_seq / t_mp_pixel if t_mp_pixel > 0 else 0
         eff_mp_pixel = speedup_mp_pixel / w if w > 0 else 0
@@ -149,8 +143,8 @@ if __name__ == "__main__":
             'time': t_mp_pixel, 'speedup': speedup_mp_pixel, 'efficiency': eff_mp_pixel
         }
         print(f"  Time: {t_mp_pixel:.4f}s | Speedup: {speedup_mp_pixel:.2f}x | Efficiency: {eff_mp_pixel:.2%}")
-        
-        print(f"Testing concurrent.futures (pixel-level) with {w} workers...")
+
+        print(f"concurrent.futures with {w} workers...")
         t_cf_pixel = run_benchmark_futures(files, w)
         speedup_cf_pixel = t_seq / t_cf_pixel if t_cf_pixel > 0 else 0
         eff_cf_pixel = speedup_cf_pixel / w if w > 0 else 0
@@ -158,11 +152,10 @@ if __name__ == "__main__":
             'time': t_cf_pixel, 'speedup': speedup_cf_pixel, 'efficiency': eff_cf_pixel
         }
         print(f"  Time: {t_cf_pixel:.4f}s | Speedup: {speedup_cf_pixel:.2f}x | Efficiency: {eff_cf_pixel:.2%}")
-        
-        # Strategy 2: IMAGE-LEVEL PARALLELISM (new approach)
-        print(f"\n--- IMAGE-LEVEL PARALLELISM (multi-image) ---")
-        
-        print(f"Testing multiprocessing.Pool (image-level) with {w} workers...")
+
+        # Image-level parallelism
+        print("\n[Image-level parallelism]")
+        print(f"multiprocessing.Pool with {w} workers...")
         t_mp_image = run_benchmark_multiprocessing_image_level(files, w)
         speedup_mp_image = t_seq / t_mp_image if t_mp_image > 0 else 0
         eff_mp_image = speedup_mp_image / w if w > 0 else 0
@@ -170,8 +163,8 @@ if __name__ == "__main__":
             'time': t_mp_image, 'speedup': speedup_mp_image, 'efficiency': eff_mp_image
         }
         print(f"  Time: {t_mp_image:.4f}s | Speedup: {speedup_mp_image:.2f}x | Efficiency: {eff_mp_image:.2%}")
-        
-        print(f"Testing concurrent.futures (image-level) with {w} workers...")
+
+        print(f"concurrent.futures with {w} workers...")
         t_cf_image = run_benchmark_futures_image_level(files, w)
         speedup_cf_image = t_seq / t_cf_image if t_cf_image > 0 else 0
         eff_cf_image = speedup_cf_image / w if w > 0 else 0
