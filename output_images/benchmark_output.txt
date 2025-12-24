@@ -2,12 +2,388 @@
 IMAGE PROCESSING PARALLELISM BENCHMARK
 ============================================================
 Number of images: 50
-CPU cores available: 12
+CPU cores available: 16
 Input folder: ./input_images
 Output folder: ./output_images
-Timestamp: 2025-12-24 01:02:22
+Timestamp: 2025-12-24 02:30:45
 
 ------------------------------------------------------------
 Step 1: Sequential Processing (no parallelism)
 ------------------------------------------------------------
 Processing images one by one...
+Total time (sequential): 326.2508 seconds
+Average time per image: 6.5250 seconds
+
+========================================
+Testing with 1 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 326.8898s | Speedup: 1.00x | Efficiency: 99.80%
+concurrent.futures with 1 workers...
+  Time: 323.8806s | Speedup: 1.01x | Efficiency: 100.73%
+
+[Image-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 323.9240s | Speedup: 1.01x | Efficiency: 100.72%
+concurrent.futures with 1 workers...
+  Time: 328.8533s | Speedup: 0.99x | Efficiency: 99.21%
+
+========================================
+Testing with 2 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 2 workers...
+  Time: 170.5357s | Speedup: 1.91x | Efficiency: 95.65%
+concurrent.futures with 2 workers...
+  Time: 171.0455s | Speedup: 1.91x | Efficiency: 95.37%
+
+[Image-level parallelism]
+multiprocessing.Pool with 2 workers...
+  Time: 181.5352s | Speedup: 1.80x | Efficiency: 89.86%
+concurrent.futures with 2 workers...
+  Time: 161.7680s | Speedup: 2.02x | Efficiency: 100.84%
+
+========================================
+Testing with 4 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 4 workers...
+  Time: 86.0291s | Speedup: 3.79x | Efficiency: 94.81%
+concurrent.futures with 4 workers...
+  Time: 82.9550s | Speedup: 3.93x | Efficiency: 98.32%
+
+[Image-level parallelism]
+multiprocessing.Pool with 4 workers...
+  Time: 89.1194s | Speedup: 3.66x | Efficiency: 91.52%
+concurrent.futures with 4 workers...
+  Time: 84.7103s | Speedup: 3.85x | Efficiency: 96.28%
+
+========================================
+Testing with 8 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 8 workers...
+  Time: 48.9070s | Speedup: 6.67x | Efficiency: 83.39%
+concurrent.futures with 8 workers...
+  Time: 50.6574s | Speedup: 6.44x | Efficiency: 80.50%
+
+[Image-level parallelism]
+multiprocessing.Pool with 8 workers...
+  Time: 52.5063s | Speedup: 6.21x | Efficiency: 77.67%
+concurrent.futures with 8 workers...
+  Time: 45.5022s | Speedup: 7.17x | Efficiency: 89.63%
+
+========================================
+Testing with 16 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 16 workers...
+  Time: 41.9884s | Speedup: 7.77x | Efficiency: 48.56%
+concurrent.futures with 16 workers...
+  Time: 45.4273s | Speedup: 7.18x | Efficiency: 44.89%
+
+[Image-level parallelism]
+multiprocessing.Pool with 16 workers...
+  Time: 44.6422s | Speedup: 7.31x | Efficiency: 45.68%
+concurrent.futures with 16 workers...
+  Time: 46.0387s | Speedup: 7.09x | Efficiency: 44.29%
+
+================================================================================
+PHASE 3: SCALABILITY ANALYSIS
+================================================================================
+
+
+================================================================================
+PIXEL-LEVEL PARALLELISM STRATEGY
+================================================================================
+
+Multiprocessing:
+----------------------------------------
+
+Concurrent.Futures:
+----------------------------------------
+
+Workers    Time (s)     Speedup      Efficiency  
+1          323.8806     1.01        x 100.73%     
+2          171.0455     1.91        x 95.37%      
+4          82.9550      3.93        x 98.32%      
+8          50.6574      6.44        x 80.50%      
+16         45.4273      7.18        x 44.89%      
+
+Scalability Metrics:
+  • Best speedup: 7.18x (at 16 workers)
+  • Speedup with 16 workers: 7.18x (Ideal: 16x)
+  • Scaling efficiency: 44.9%
+  • Efficiency trend: 100.7% → 95.4% → 98.3% → 80.5% → 44.9%
+
+Bottleneck Analysis:
+  ⚠️  POOR SCALING detected:
+      • Process creation/communication overhead dominates computation
+      • Pixel-level IPC overhead is excessive for image size
+      • Consider image-level parallelism instead
+      • Python process spawning costs are significant
+  Recommendation: Use image-level strategy
+
+================================================================================
+IMAGE-LEVEL PARALLELISM STRATEGY
+================================================================================
+
+Multiprocessing:
+----------------------------------------
+
+Concurrent.Futures:
+----------------------------------------
+
+Workers    Time (s)     Speedup      Efficiency  
+1          328.8533     0.99        x 99.21%      
+2          161.7680     2.02        x 100.84%     
+4          84.7103      3.85        x 96.28%      
+8          45.5022      7.17        x 89.63%      
+16         46.0387      7.09        x 44.29%      
+
+Scalability Metrics:
+  • Best speedup: 7.17x (at 8 workers)
+  • Speedup with 16 workers: 7.09x (Ideal: 16x)
+  • Scaling efficiency: 44.3%
+  • Efficiency trend: 99.2% → 100.8% → 96.3% → 89.6% → 44.3%
+
+Bottleneck Analysis:
+  ⚠️  POOR SCALING detected:
+      • Process creation/communication overhead dominates computation
+      • Too few images to effectively utilize workers
+      • Load imbalance: some workers finish early
+      • Python process spawning costs are significant
+  Recommendation: Use larger dataset or fewer workers
+
+================================================================================
+PHASE 3B: PARALLELIZATION STRATEGY COMPARISON
+================================================================================
+
+Comparing PIXEL-LEVEL vs IMAGE-LEVEL parallelism...
+
+
+Multiprocessing:
+------------------------------------------------------------
+  Pixel-Level:  Time=41.9884s, Speedup=7.77x, Efficiency=48.56%
+  Image-Level:  Time=44.6422s, Speedup=7.31x, Efficiency=45.68%
+
+  ✓ PIXEL-LEVEL is FASTER by 2.6538s (5.9%)
+    Reason: Better parallelism within large images
+
+Concurrent.Futures:
+------------------------------------------------------------
+  Pixel-Level:  Time=45.4273s, Speedup=7.18x, Efficiency=44.89%
+  Image-Level:  Time=46.0387s, Speedup=7.09x, Efficiency=44.29%
+
+  ✓ PIXEL-LEVEL is FASTER by 0.6115s (1.3%)
+    Reason: Better parallelism within large images
+
+--------------------------------------------------------------------------------
+
+Strategy Trade-offs:
+
+PIXEL-LEVEL (Chunk-based):
+  Advantages:
+    • Effective for processing very large images
+    • Can parallelize even with single image
+    • Granular load distribution within image
+  Disadvantages:
+    • High IPC overhead (data transfer between processes)
+    • Chunk synchronization costs
+    • Edge handling complexity (overlapping chunks)
+    • Process pool overhead per image
+
+IMAGE-LEVEL (Multi-image):
+  Advantages:
+    • Low IPC overhead (each process works independently)
+    • Simple work distribution
+    • No chunk synchronization needed
+    • Better cache locality
+  Disadvantages:
+    • Requires multiple images to parallelize
+    • Load imbalance if image sizes vary significantly
+    • Cannot parallelize single image processing
+
+Recommendation for this workload (50 images):
+  • Both strategies perform similarly for this workload
+    • Choose IMAGE-LEVEL for simplicity and lower overhead
+    • Choose PIXEL-LEVEL only for very large individual images
+
+================================================================================
+PHASE 3C: PARADIGM COMPARISON (Multiprocessing vs Concurrent.Futures)
+================================================================================
+
+Pixel-Level Strategy at 16 workers:
+------------------------------------------------------------
+  Multiprocessing:      Time=41.9884s, Speedup=7.77x, Efficiency=48.56%
+  Concurrent.Futures:   Time=45.4273s, Speedup=7.18x, Efficiency=44.89%
+  ✓ Multiprocessing is FASTER by 3.4389s (7.6%)
+
+Image-Level Strategy at 16 workers:
+------------------------------------------------------------
+  Multiprocessing:      Time=44.6422s, Speedup=7.31x, Efficiency=45.68%
+  Concurrent.Futures:   Time=46.0387s, Speedup=7.09x, Efficiency=44.29%
+  ✓ Multiprocessing is FASTER by 1.3966s (3.0%)
+
+Key Differences Between Paradigms:
+  • multiprocessing.Pool: Classic API, efficient pool.map() for bulk operations
+  • concurrent.futures: Modern API, better for task-based workflows
+  • Both use similar underlying mechanisms (process pools)
+  • Performance difference typically <5% for compute-bound tasks
+  • concurrent.futures offers more flexibility for async patterns
+
+================================================================================
+PHASE 4: AMDAHL'S LAW ANALYSIS
+================================================================================
+
+Amdahl's Law: S(n) = 1 / ((1-p) + p/n)
+where p = parallelizable fraction, n = number of processors
+
+Estimating parallelizable portion from observed speedup...
+
+
+================================================================================
+PIXEL-LEVEL STRATEGY
+================================================================================
+
+Multiprocessing:
+----------------------------------------
+
+Observed speedup at 16 workers: 7.77x
+
+Estimated work distribution:
+  • Parallelizable portion (p): 92.9%
+  • Serial portion (1-p):       7.1%
+
+Theoretical limits (Amdahl's Law):
+  • Maximum speedup (infinite processors): 14.16x
+  • Current achievement: 54.9% of theoretical maximum
+
+Projected speedups based on estimated p=0.929:
+  •   2 processors:  1.87x speedup (93.4% efficiency)
+  •   4 processors:  3.30x speedup (82.5% efficiency)
+  •   8 processors:  5.35x speedup (66.9% efficiency)
+  •  16 processors:  7.77x speedup (48.6% efficiency)
+  •  32 processors: 10.03x speedup (31.4% efficiency)
+  •  64 processors: 11.75x speedup (18.4% efficiency)
+
+Concurrent.Futures:
+----------------------------------------
+
+Observed speedup at 16 workers: 7.18x
+
+Estimated work distribution:
+  • Parallelizable portion (p): 91.8%
+  • Serial portion (1-p):       8.2%
+
+Theoretical limits (Amdahl's Law):
+  • Maximum speedup (infinite processors): 12.22x
+  • Current achievement: 58.8% of theoretical maximum
+
+Projected speedups based on estimated p=0.918:
+  •   2 processors:  1.85x speedup (92.4% efficiency)
+  •   4 processors:  3.21x speedup (80.3% efficiency)
+  •   8 processors:  5.09x speedup (63.6% efficiency)
+  •  16 processors:  7.18x speedup (44.9% efficiency)
+  •  32 processors:  9.05x speedup (28.3% efficiency)
+  •  64 processors: 10.39x speedup (16.2% efficiency)
+
+================================================================================
+IMAGE-LEVEL STRATEGY
+================================================================================
+
+Multiprocessing:
+----------------------------------------
+
+Observed speedup at 16 workers: 7.31x
+
+Estimated work distribution:
+  • Parallelizable portion (p): 92.1%
+  • Serial portion (1-p):       7.9%
+
+Theoretical limits (Amdahl's Law):
+  • Maximum speedup (infinite processors): 12.61x
+  • Current achievement: 57.9% of theoretical maximum
+
+Projected speedups based on estimated p=0.921:
+  •   2 processors:  1.85x speedup (92.7% efficiency)
+  •   4 processors:  3.23x speedup (80.8% efficiency)
+  •   8 processors:  5.14x speedup (64.3% efficiency)
+  •  16 processors:  7.31x speedup (45.7% efficiency)
+  •  32 processors:  9.25x speedup (28.9% efficiency)
+  •  64 processors: 10.68x speedup (16.7% efficiency)
+
+Concurrent.Futures:
+----------------------------------------
+
+Observed speedup at 16 workers: 7.09x
+
+Estimated work distribution:
+  • Parallelizable portion (p): 91.6%
+  • Serial portion (1-p):       8.4%
+
+Theoretical limits (Amdahl's Law):
+  • Maximum speedup (infinite processors): 11.93x
+  • Current achievement: 59.4% of theoretical maximum
+
+Projected speedups based on estimated p=0.916:
+  •   2 processors:  1.85x speedup (92.3% efficiency)
+  •   4 processors:  3.20x speedup (79.9% efficiency)
+  •   8 processors:  5.04x speedup (63.0% efficiency)
+  •  16 processors:  7.09x speedup (44.3% efficiency)
+  •  32 processors:  8.89x speedup (27.8% efficiency)
+  •  64 processors: 10.19x speedup (15.9% efficiency)
+
+================================================================================
+PHASE 5B: SAVING RESULTS TO FILES
+================================================================================
+✓ Saved CSV: ./output_images/benchmark_results.csv
+✓ Saved JSON: ./output_images/benchmark_results.json
+
+================================================================================
+PHASE 5C: GENERATING PERFORMANCE VISUALIZATIONS
+================================================================================
+
+Creating performance charts...
+✓ Saved: ./output_images/performance_analysis.png
+
+================================================================================
+BENCHMARK COMPLETE
+================================================================================
+
+Summary:
+  • Processed 50 images through 5-filter pipeline
+  • Sequential baseline: 326.2508s
+  • Best parallel time: 41.9884s (Pixel-Level - Multiprocessing - 16 workers)
+  • Maximum speedup achieved: 7.77x
+  • Overall speedup: 7.77x faster than sequential
+
+Strategies Tested:
+  1. PIXEL-LEVEL: Divide each image into chunks, process chunks in parallel
+  2. IMAGE-LEVEL: Process multiple images concurrently
+
+Paradigms Tested:
+  1. multiprocessing.Pool (classic process pool API)
+  2. concurrent.futures.ProcessPoolExecutor (modern async API)
+
+Output Files Generated:
+  • Processed images: ./output_images/
+  • Benchmark output: ./output_images/benchmark_output.txt
+  • Performance chart: ./output_images/performance_analysis.png
+  • Results (CSV): ./output_images/benchmark_results.csv
+  • Results (JSON): ./output_images/benchmark_results.json
+
+Filters applied (in order):
+  1. Grayscale Conversion (ITU-R BT.601 luminance formula)
+  2. Gaussian Blur (3×3 kernel smoothing)
+  3. Image Sharpening (edge enhancement)
+  4. Edge Detection (Sobel operator)
+  5. Brightness Adjustment (1.2x factor)
+
+================================================================================
