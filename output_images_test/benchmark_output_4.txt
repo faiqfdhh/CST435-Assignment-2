@@ -1,0 +1,69 @@
+============================================================
+IMAGE PROCESSING PARALLELISM BENCHMARK
+============================================================
+Number of images: 1
+CPU cores available: 12
+Input folder: ./input_images_test
+Output folder: ./output_images_test
+Timestamp: 2025-12-31 00:16:05
+
+Pre-loading images into RAM (excluding I/O from benchmark)...
+Loaded 1 images into memory
+
+------------------------------------------------------------
+Step 1: Sequential Processing (no parallelism)
+------------------------------------------------------------
+Processing images one by one (CPU-only, no I/O)...
+Total time (sequential): 7.6638 seconds
+Average time per image: 7.6638 seconds
+
+========================================
+Testing with 1 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 8.1417s | Speedup: 0.94x | Efficiency: 94.13%
+concurrent.futures with 1 workers...
+  Time: 8.1688s | Speedup: 0.94x | Efficiency: 93.82%
+
+[Image-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 8.1038s | Speedup: 0.95x | Efficiency: 94.57%
+concurrent.futures with 1 workers...
+  Time: 8.1206s | Speedup: 0.94x | Efficiency: 94.37%
+
+[Task-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 8.1696s | Speedup: 0.94x | Efficiency: 93.81%
+concurrent.futures with 1 workers...
+  Time: 8.1455s | Speedup: 0.94x | Efficiency: 94.09%
+
+========================================
+Testing with 2 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 2 workers...
+  Time: 5.1327s | Speedup: 1.49x | Efficiency: 74.66%
+concurrent.futures with 2 workers...
+  Time: 5.2981s | Speedup: 1.45x | Efficiency: 72.33%
+
+[Image-level parallelism]
+multiprocessing.Pool with 2 workers...
+  Time: 8.2973s | Speedup: 0.92x | Efficiency: 46.18%
+concurrent.futures with 2 workers...
+  Time: 8.3377s | Speedup: 0.92x | Efficiency: 45.96%
+
+[Task-level parallelism]
+multiprocessing.Pool with 2 workers...
+  Time: 8.2124s | Speedup: 0.93x | Efficiency: 46.66%
+concurrent.futures with 2 workers...
+  Time: 8.2561s | Speedup: 0.93x | Efficiency: 46.41%
+
+========================================
+Testing with 4 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 4 workers...

@@ -1,0 +1,161 @@
+============================================================
+IMAGE PROCESSING PARALLELISM BENCHMARK
+============================================================
+Images: 1 | CPU Cores: 12
+Input: ./input_images_test | Output: ./output_images_test
+
+Pre-loading images...
+
+------------------------------------------------------------
+Step 1: Sequential Processing
+------------------------------------------------------------
+Total time: 7.7543s | Avg per image: 7.7543s
+
+------------------------------------------------------------
+Step 2: Parallel Benchmarks
+------------------------------------------------------------
+
+========================================
+Testing with 1 worker(s)
+========================================
+
+[Pixel-level]
+Multiprocessing...
+  Time: 8.1862s | Speedup: 0.95x | Efficiency: 94.72%
+Futures...
+  Time: 8.1644s | Speedup: 0.95x | Efficiency: 94.98%
+
+[Image-level]
+Multiprocessing...
+  Time: 8.1357s | Speedup: 0.95x | Efficiency: 95.31%
+Futures...
+  Time: 8.0787s | Speedup: 0.96x | Efficiency: 95.98%
+
+[Task-level]
+Multiprocessing...
+  Time: 8.2300s | Speedup: 0.94x | Efficiency: 94.22%
+Futures...
+  Time: 8.1402s | Speedup: 0.95x | Efficiency: 95.26%
+
+========================================
+Testing with 2 worker(s)
+========================================
+
+[Pixel-level]
+Multiprocessing...
+  Time: 5.2030s | Speedup: 1.49x | Efficiency: 74.52%
+Futures...
+  Time: 5.4137s | Speedup: 1.43x | Efficiency: 71.62%
+
+[Image-level]
+Multiprocessing...
+  Time: 8.3156s | Speedup: 0.93x | Efficiency: 46.62%
+Futures...
+  Time: 8.1612s | Speedup: 0.95x | Efficiency: 47.51%
+
+[Task-level]
+Multiprocessing...
+  Time: 8.2195s | Speedup: 0.94x | Efficiency: 47.17%
+Futures...
+  Time: 8.1354s | Speedup: 0.95x | Efficiency: 47.66%
+
+========================================
+Testing with 4 worker(s)
+========================================
+
+[Pixel-level]
+Multiprocessing...
+  Time: 3.2671s | Speedup: 2.37x | Efficiency: 59.34%
+Futures...
+  Time: 3.5007s | Speedup: 2.22x | Efficiency: 55.38%
+
+[Image-level]
+Multiprocessing...
+  Time: 8.2311s | Speedup: 0.94x | Efficiency: 23.55%
+Futures...
+  Time: 8.2301s | Speedup: 0.94x | Efficiency: 23.55%
+
+[Task-level]
+Multiprocessing...
+  Time: 8.4573s | Speedup: 0.92x | Efficiency: 22.92%
+Futures...
+  Time: 8.3093s | Speedup: 0.93x | Efficiency: 23.33%
+
+========================================
+Testing with 8 worker(s)
+========================================
+
+[Pixel-level]
+Multiprocessing...
+  Time: 2.2992s | Speedup: 3.37x | Efficiency: 42.16%
+Futures...
+  Time: 2.3982s | Speedup: 3.23x | Efficiency: 40.42%
+
+[Image-level]
+Multiprocessing...
+  Time: 8.7423s | Speedup: 0.89x | Efficiency: 11.09%
+Futures...
+  Time: 8.2697s | Speedup: 0.94x | Efficiency: 11.72%
+
+[Task-level]
+Multiprocessing...
+  Time: 8.6046s | Speedup: 0.90x | Efficiency: 11.26%
+Futures...
+  Time: 8.6130s | Speedup: 0.90x | Efficiency: 11.25%
+
+================================================================================
+SCALABILITY ANALYSIS
+================================================================================
+
+--- Pixel-Level ---
+
+Multiprocessing:
+Workers    Time       Speedup    Efficiency
+1          8.1862     0.95      x 94.72%    
+2          5.2030     1.49      x 74.52%    
+4          3.2671     2.37      x 59.34%    
+8          2.2992     3.37      x 42.16%    
+
+Concurrent.Futures:
+Workers    Time       Speedup    Efficiency
+1          8.1644     0.95      x 94.98%    
+2          5.4137     1.43      x 71.62%    
+4          3.5007     2.22      x 55.38%    
+8          2.3982     3.23      x 40.42%    
+
+--- Image-Level ---
+
+Multiprocessing:
+Workers    Time       Speedup    Efficiency
+1          8.1357     0.95      x 95.31%    
+2          8.3156     0.93      x 46.62%    
+4          8.2311     0.94      x 23.55%    
+8          8.7423     0.89      x 11.09%    
+
+Concurrent.Futures:
+Workers    Time       Speedup    Efficiency
+1          8.0787     0.96      x 95.98%    
+2          8.1612     0.95      x 47.51%    
+4          8.2301     0.94      x 23.55%    
+8          8.2697     0.94      x 11.72%    
+
+--- Task-Level ---
+
+Multiprocessing:
+Workers    Time       Speedup    Efficiency
+1          8.2300     0.94      x 94.22%    
+2          8.2195     0.94      x 47.17%    
+4          8.4573     0.92      x 22.92%    
+8          8.6046     0.90      x 11.26%    
+
+Concurrent.Futures:
+Workers    Time       Speedup    Efficiency
+1          8.1402     0.95      x 95.26%    
+2          8.1354     0.95      x 47.66%    
+4          8.3093     0.93      x 23.33%    
+8          8.6130     0.90      x 11.25%    
+
+Saved data to ./output_images_test\benchmark_results_1.csv and ./output_images_test\benchmark_results_1.json
+
+Generating Charts...
+Chart saved to ./output_images_test\performance.png

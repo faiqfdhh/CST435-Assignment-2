@@ -1,0 +1,17 @@
+Strategy,Paradigm,Workers,Time (s),Speedup,Efficiency
+Pixel-Level,Multiprocessing,1,8.6229,0.9224,0.9224
+Pixel-Level,Multiprocessing,2,4.9901,1.5939,0.7969
+Pixel-Level,Multiprocessing,4,3.4218,2.3244,0.5811
+Pixel-Level,Multiprocessing,8,2.3889,3.3294,0.4162
+Pixel-Level,Concurrent.Futures,1,8.6399,0.9206,0.9206
+Pixel-Level,Concurrent.Futures,2,5.0595,1.5720,0.7860
+Pixel-Level,Concurrent.Futures,4,3.4359,2.3149,0.5787
+Pixel-Level,Concurrent.Futures,8,2.4596,3.2338,0.4042
+Image-Level,Multiprocessing,1,8.2907,0.9593,0.9593
+Image-Level,Multiprocessing,2,8.3869,0.9483,0.4742
+Image-Level,Multiprocessing,4,8.8403,0.8997,0.2249
+Image-Level,Multiprocessing,8,8.8217,0.9016,0.1127
+Image-Level,Concurrent.Futures,1,8.5655,0.9286,0.9286
+Image-Level,Concurrent.Futures,2,8.6102,0.9237,0.4619
+Image-Level,Concurrent.Futures,4,8.4837,0.9375,0.2344
+Image-Level,Concurrent.Futures,8,8.5072,0.9349,0.1169

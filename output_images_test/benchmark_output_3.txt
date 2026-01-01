@@ -1,0 +1,37 @@
+============================================================
+IMAGE PROCESSING PARALLELISM BENCHMARK
+============================================================
+Number of images: 1
+CPU cores available: 12
+Input folder: ./input_images_test
+Output folder: ./output_images_test
+Timestamp: 2025-12-31 00:14:24
+
+Pre-loading images into RAM (excluding I/O from benchmark)...
+Loaded 1 images into memory
+
+------------------------------------------------------------
+Step 1: Sequential Processing (no parallelism)
+------------------------------------------------------------
+Processing images one by one (CPU-only, no I/O)...
+Total time (sequential): 7.8256 seconds
+Average time per image: 7.8256 seconds
+
+========================================
+Testing with 1 worker(s)
+========================================
+
+[Pixel-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 8.4884s | Speedup: 0.92x | Efficiency: 92.19%
+concurrent.futures with 1 workers...
+  Time: 8.7620s | Speedup: 0.89x | Efficiency: 89.31%
+
+[Image-level parallelism]
+multiprocessing.Pool with 1 workers...
+  Time: 8.5384s | Speedup: 0.92x | Efficiency: 91.65%
+concurrent.futures with 1 workers...
+  Time: 8.5536s | Speedup: 0.91x | Efficiency: 91.49%
+
+[Task-level parallelism]
+multiprocessing.Pool with 1 workers...

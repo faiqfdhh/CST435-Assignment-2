@@ -1,0 +1,13 @@
+============================================================
+IMAGE PROCESSING PARALLELISM BENCHMARK
+============================================================
+Number of images: 50
+CPU cores available: 12
+Input folder: ./input_images
+Output folder: ./output_images
+Timestamp: 2025-12-24 15:30:48
+
+------------------------------------------------------------
+Step 1: Sequential Processing (no parallelism)
+------------------------------------------------------------
+Processing images one by one...
