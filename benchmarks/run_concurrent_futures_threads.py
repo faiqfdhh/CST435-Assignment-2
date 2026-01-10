@@ -1,10 +1,15 @@
 import os
+import sys
 import time
 import glob
 import multiprocessing
+import concurrent.futures
 import csv
 import json
 from datetime import datetime
+
+# Add parent directory to path to import filters module
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Disable internal parallelization in NumPy to ensure fair benchmarking
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
@@ -16,14 +21,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from filters import (process_single_image, process_single_image_sequential_array,
-                     process_images_pipeline_multiprocessing)
+from filters import (process_single_image_futures, process_single_image_sequential_array,
+                     process_images_pipeline_futures_threads)
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-INPUT_DIR = './input_images'
-OUTPUT_DIR = './output_images'
+INPUT_DIR = '../input_images'
+OUTPUT_DIR = '../output_images'
 
 # ============================================================================
 # LOGGING UTILITIES
@@ -64,7 +69,7 @@ def get_image_files():
     return glob.glob(os.path.join(INPUT_DIR, '*.jpg'))
 
 
-def run_benchmark_mp(func, image_arrays, num_workers=None, mode='seq'):
+def run_benchmark_cf_threads(func, image_arrays, num_workers=None, mode='seq'):
 
     if not os.path.exists(OUTPUT_DIR): 
         os.makedirs(OUTPUT_DIR)
@@ -75,15 +80,15 @@ def run_benchmark_mp(func, image_arrays, num_workers=None, mode='seq'):
         # Sequential baseline
         for img in image_arrays: 
             func(img, OUTPUT_DIR)
-    elif mode == 'mp_pool':
-        # Pixel-level: Pool passed to function for internal parallelization
-        with multiprocessing.Pool(processes=num_workers) as pool:
+    elif mode == 'cf_threads':
+        # Pixel-level: Executor passed to function for internal parallelization
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
             for img in image_arrays: 
-                func(img, OUTPUT_DIR, pool, num_workers)
-    elif mode == 'mp_map':
+                func(img, OUTPUT_DIR, executor, num_workers)
+    elif mode == 'cf_map':
         # Image-level: Each worker processes a complete image
-        with multiprocessing.Pool(processes=num_workers) as pool:
-            pool.starmap(func, [(img, OUTPUT_DIR) for img in image_arrays])
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            list(executor.map(func, image_arrays, [OUTPUT_DIR]*len(image_arrays)))
     elif mode == 'direct':
         # Task-level: Function manages its own parallelization
         func(image_arrays, OUTPUT_DIR, num_workers)
@@ -134,14 +139,14 @@ def analyze_amdahl(logger, strategy, results, worker_counts):
 
 if __name__ == "__main__":
     print("\n" + "="*70)
-    print("  MULTIPROCESSING-ONLY BENCHMARK")
-    print("  Using: multiprocessing.Pool, pool.starmap, apply_async")
+    print("  CONCURRENT.FUTURES THREADPOOL BENCHMARK")
+    print("  Using: ThreadPoolExecutor, executor.map, executor.submit")
     print("="*70 + "\n")
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     # Setup logging
-    log_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_multiprocessing.txt'))
+    log_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_concurrent_futures_threads.txt'))
     logger = DualLogger(log_file)
     
     # Load images
@@ -153,7 +158,7 @@ if __name__ == "__main__":
 
     num_imgs = len(files)
     print_both(logger, "="*60)
-    print_both(logger, "MULTIPROCESSING BENCHMARK")
+    print_both(logger, "CONCURRENT.FUTURES THREADPOOL BENCHMARK")
     print_both(logger, "="*60)
     print_both(logger, f"Images: {num_imgs} | CPU Cores: {multiprocessing.cpu_count()}")
     print_both(logger, f"Input: {INPUT_DIR} | Output: {OUTPUT_DIR}")
@@ -166,13 +171,14 @@ if __name__ == "__main__":
     print_both(logger, "\n" + "-"*60)
     print_both(logger, "Step 1: Sequential Processing (Baseline)")
     print_both(logger, "-"*60)
-    t_seq = run_benchmark_mp(process_single_image_sequential_array, image_arrays, mode='seq')
+    t_seq = run_benchmark_cf_threads(process_single_image_sequential_array, image_arrays, mode='seq')
     print_both(logger, f"Total time: {t_seq:.4f}s | Avg per image: {t_seq/num_imgs:.4f}s")
 
     # Define worker counts
     worker_counts = [1, 2, 4, 8 , 16]
     if multiprocessing.cpu_count() >= 32: 
         worker_counts.append(32)
+
     # Initialize results
     results = {
         'Pixel-Level': {},
@@ -180,9 +186,9 @@ if __name__ == "__main__":
         'Task-Level': {}
     }
 
-    # Step 2: Parallel Benchmarks (Multiprocessing Only)
+    # Step 2: Parallel Benchmarks (Concurrent.Futures ThreadPoolExecutor)
     print_both(logger, "\n" + "-"*60)
-    print_both(logger, "Step 2: Multiprocessing Parallel Benchmarks")
+    print_both(logger, "Step 2: Concurrent.Futures ThreadPoolExecutor Parallel Benchmarks")
     print_both(logger, "-"*60)
     
     for w in worker_counts:
@@ -191,18 +197,18 @@ if __name__ == "__main__":
         print_both(logger, f"{'='*40}")
 
         # Pixel-Level Parallelism
-        print_both(logger, "\n[Pixel-level] multiprocessing.Pool...")
-        t = run_benchmark_mp(process_single_image, image_arrays, w, 'mp_pool')
+        print_both(logger, "\n[Pixel-level] ThreadPoolExecutor + submit...")
+        t = run_benchmark_cf_threads(process_single_image_futures, image_arrays, w, 'cf_threads')
         record_result(results, 'Pixel-Level', w, t, t_seq, logger)
 
         # Image-Level Parallelism
-        print_both(logger, "\n[Image-level] pool.starmap...")
-        t = run_benchmark_mp(process_single_image_sequential_array, image_arrays, w, 'mp_map')
+        print_both(logger, "\n[Image-level] executor.map...")
+        t = run_benchmark_cf_threads(process_single_image_sequential_array, image_arrays, w, 'cf_map')
         record_result(results, 'Image-Level', w, t, t_seq, logger)
 
         # Task-Level Parallelism
-        print_both(logger, "\n[Task-level] apply_async with callbacks...")
-        t = run_benchmark_mp(process_images_pipeline_multiprocessing, image_arrays, w, 'direct')
+        print_both(logger, "\n[Task-level] ThreadPool futures with as_completed...")
+        t = run_benchmark_cf_threads(process_images_pipeline_futures_threads, image_arrays, w, 'direct')
         record_result(results, 'Task-Level', w, t, t_seq, logger)
 
     # Step 3: Amdahl's Law Analysis
@@ -223,7 +229,7 @@ if __name__ == "__main__":
         print_both(logger, f"  {s}: {results[s][max_w]['speedup']:.2f}x")
 
     # Export to CSV
-    csv_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_multiprocessing.csv'))
+    csv_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_concurrent_futures_threads.csv'))
     with open(csv_file, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['Strategy', 'Workers', 'Time', 'Speedup', 'Efficiency'])
@@ -232,10 +238,10 @@ if __name__ == "__main__":
                 writer.writerow([s, w, f"{d['time']:.4f}", f"{d['speedup']:.4f}", f"{d['efficiency']:.4f}"])
     
     # Export to JSON
-    json_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_multiprocessing.json'))
+    json_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_concurrent_futures_threads.json'))
     with open(json_file, 'w', encoding='utf-8') as f:
         json.dump({
-            'paradigm': 'multiprocessing',
+            'paradigm': 'concurrent.futures.ThreadPoolExecutor',
             'cpu_count': multiprocessing.cpu_count(), 
             'sequential_time': t_seq, 
             'results': results
@@ -258,7 +264,7 @@ if __name__ == "__main__":
     ax.plot(worker_counts, worker_counts, 'k:', label='Ideal')
     ax.set_xlabel('Workers')
     ax.set_ylabel('Speedup')
-    ax.set_title('Speedup vs Workers (Multiprocessing)')
+    ax.set_title('Speedup vs Workers (ThreadPoolExecutor)')
     ax.legend()
     ax.grid(True, alpha=0.3)
     
@@ -285,15 +291,15 @@ if __name__ == "__main__":
     ax.legend()
     ax.grid(True, alpha=0.3)
     
-    plt.suptitle('MULTIPROCESSING Benchmark Results', fontsize=14, fontweight='bold')
+    plt.suptitle('CONCURRENT.FUTURES THREADPOOL Benchmark Results', fontsize=14, fontweight='bold')
     plt.tight_layout()
     
-    chart_path = get_unique_filename(os.path.join(OUTPUT_DIR, 'performance_multiprocessing.png'))
+    chart_path = get_unique_filename(os.path.join(OUTPUT_DIR, 'performance_concurrent_futures_threads.png'))
     plt.savefig(chart_path, dpi=150)
     print_both(logger, f"  - {chart_path}")
     
     print_both(logger, "\n" + "="*60)
-    print_both(logger, "MULTIPROCESSING BENCHMARK COMPLETE")
+    print_both(logger, "CONCURRENT.FUTURES THREADPOOL BENCHMARK COMPLETE")
     print_both(logger, "="*60)
     
     logger.close()

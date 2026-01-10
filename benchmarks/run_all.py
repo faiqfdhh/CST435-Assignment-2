@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import glob
 import multiprocessing
@@ -6,6 +7,9 @@ import concurrent.futures
 import csv
 import json
 from datetime import datetime
+
+# Add parent directory to path to import filters module
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -19,8 +23,8 @@ from PIL import Image
 from filters import (process_single_image, process_single_image_futures, process_single_image_sequential_array,
                      process_images_pipeline_multiprocessing, process_images_pipeline_futures)
 
-INPUT_DIR = './input_images'
-OUTPUT_DIR = './output_images'
+INPUT_DIR = '../input_images'
+OUTPUT_DIR = '../output_images'
 
 class DualLogger:
     def __init__(self, file_path):

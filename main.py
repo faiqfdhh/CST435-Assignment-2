@@ -39,10 +39,10 @@ CONFIGS = [
 ]
 
 BENCHMARK_SCRIPTS = {
-    'multiprocessing': 'run_multiprocessing.py',
-    'concurrent_futures': 'run_concurrent_futures.py',
-    'concurrent_futures_threads': 'run_concurrent_futures_threads.py',
-    'all': 'run_all.py',
+    'multiprocessing': 'benchmarks/run_multiprocessing.py',
+    'concurrent_futures': 'benchmarks/run_concurrent_futures.py',
+    'concurrent_futures_threads': 'benchmarks/run_concurrent_futures_threads.py',
+    'all': 'benchmarks/run_all.py',
 }
 
 # ============================================================================

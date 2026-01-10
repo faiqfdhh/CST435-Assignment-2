@@ -35,7 +35,32 @@ pip install -r requirements.txt
 
 # Prepare input images (place JPG files in ./input_images/)
 mkdir -p input_images
+mkdir -p output_images
+
 # Copy your .jpg images here
+```
+#### Folder Structure Dependencies
+
+your_folder/
+├── benchmarks/
+│   ├── run_all.py
+│   ├── run_multiprocessing.py
+│   ├── run_concurrent_futures.py
+│   └── run_concurrent_futures_threads.py
+├── input_images/
+├── output_images/
+├── main.py
+├── filters.py
+├── requirements.txt
+├── README.md
+└── .gitignore
+
+
+**💡 Tip for GCP Deployment:**
+Upload `input_images.zip` to your GCP VM and extract. It contains 50 images as a subset:
+```bash
+# Extract the zip file
+unzip input_images.zip -d input_images
 ```
 
 ### 2. Run CLI Interface

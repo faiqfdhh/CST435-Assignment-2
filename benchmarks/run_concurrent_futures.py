@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import glob
 import multiprocessing
@@ -6,6 +7,9 @@ import concurrent.futures
 import csv
 import json
 from datetime import datetime
+
+# Add parent directory to path to import filters module
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Disable internal parallelization in NumPy to ensure fair benchmarking
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
@@ -23,8 +27,8 @@ from filters import (process_single_image_futures, process_single_image_sequenti
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-INPUT_DIR = './input_images'
-OUTPUT_DIR = './output_images'
+INPUT_DIR = '../input_images'
+OUTPUT_DIR = '../output_images'
 
 # ============================================================================
 # LOGGING UTILITIES
