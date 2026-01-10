@@ -41,7 +41,7 @@ mkdir -p input_images
 ### 2. Run CLI Interface
 
 ```bash
-python3 cli_benchmark.py
+python3 main.py
 ```
 
 This launches an interactive menu-driven interface with options to:
