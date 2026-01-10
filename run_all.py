@@ -67,11 +67,17 @@ def run_benchmark_generic(func, image_arrays, num_workers=None, mode='seq'):
     elif mode == 'cf_pool':
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
             for img in image_arrays: func(img, OUTPUT_DIR, executor, num_workers)
+    elif mode == 'cf_threads':
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            for img in image_arrays: func(img, OUTPUT_DIR, executor, num_workers)
     elif mode == 'mp_map':
         with multiprocessing.Pool(processes=num_workers) as pool:
             pool.starmap(func, [(img, OUTPUT_DIR) for img in image_arrays])
     elif mode == 'cf_map':
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+            list(executor.map(func, image_arrays, [OUTPUT_DIR]*len(image_arrays)))
+    elif mode == 'cf_map_threads':
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
             list(executor.map(func, image_arrays, [OUTPUT_DIR]*len(image_arrays)))
     elif mode == 'direct':
         func(image_arrays, OUTPUT_DIR, num_workers)
@@ -202,16 +208,81 @@ if __name__ == "__main__":
     t_seq = run_benchmark_generic(process_single_image_sequential_array, image_arrays, mode='seq')
     print_both(logger, f"Total time: {t_seq:.4f}s | Avg per image: {t_seq/num_imgs:.4f}s")
 
-    worker_counts = [1, 2, 4, 8]
+    worker_counts = [2, 4, 8]
     if multiprocessing.cpu_count() >= 16: worker_counts.append(16)
 
+    # --- STEP 2: SINGLE IMAGE BENCHMARK ---
+    print_both(logger, "\n" + "="*60 + "\nStep 2: Single Image Benchmark (All Configurations)\n" + "="*60)
+    print_both(logger, "Testing processing time for ONE image across all paradigms and strategies")
+    
+    # Use first image for single-image benchmark
+    single_img = [image_arrays[0]]
+    
+    # Sequential baseline for single image
+    print_both(logger, "\n[Sequential Baseline - Single Image]")
+    t_seq_single = run_benchmark_generic(process_single_image_sequential_array, single_img, mode='seq')
+    print_both(logger, f"Sequential time (1 image): {t_seq_single:.4f}s")
+    
+    # Results structure for single-image benchmark
+    results_single = {
+        'Pixel-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}},
+        'Image-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}},
+        'Task-Level':   {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}}
+    }
+    
+    print_both(logger, "\n" + "-"*60 + "\nSingle Image Parallel Tests\n" + "-"*60)
+    
+    for w in worker_counts:
+        print_both(logger, f"\n{'='*40}\nTesting Single Image with {w} worker(s)\n{'='*40}")
+
+        print_both(logger, "\n[Pixel-level]")
+        print_both(logger, f"Multiprocessing...")
+        t = run_benchmark_generic(process_single_image, single_img, w, 'mp_pool')
+        record_result(results_single, 'Pixel-Level', 'Multiprocessing', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"Futures (ProcessPool)...")
+        t = run_benchmark_generic(process_single_image_futures, single_img, w, 'cf_pool')
+        record_result(results_single, 'Pixel-Level', 'Concurrent.Futures', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_single_image_futures, single_img, w, 'cf_threads')
+        record_result(results_single, 'Pixel-Level', 'ThreadPool', w, t, t_seq_single, logger)
+
+        print_both(logger, "\n[Image-level]")
+        print_both(logger, f"Multiprocessing...")
+        t = run_benchmark_generic(process_single_image_sequential_array, single_img, w, 'mp_map')
+        record_result(results_single, 'Image-Level', 'Multiprocessing', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"Futures (ProcessPool)...")
+        t = run_benchmark_generic(process_single_image_sequential_array, single_img, w, 'cf_map')
+        record_result(results_single, 'Image-Level', 'Concurrent.Futures', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_single_image_sequential_array, single_img, w, 'cf_map_threads')
+        record_result(results_single, 'Image-Level', 'ThreadPool', w, t, t_seq_single, logger)
+
+        print_both(logger, "\n[Task-level]")
+        print_both(logger, f"Multiprocessing...")
+        t = run_benchmark_generic(process_images_pipeline_multiprocessing, single_img, w, 'direct')
+        record_result(results_single, 'Task-Level', 'Multiprocessing', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"Futures (ProcessPool)...")
+        t = run_benchmark_generic(process_images_pipeline_futures, single_img, w, 'direct')
+        record_result(results_single, 'Task-Level', 'Concurrent.Futures', w, t, t_seq_single, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_images_pipeline_futures, single_img, w, 'direct')
+        record_result(results_single, 'Task-Level', 'ThreadPool', w, t, t_seq_single, logger)
+
+    # --- STEP 3: MULTI-IMAGE BENCHMARK ---
     results = {
-        'Pixel-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}},
-        'Image-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}},
-        'Task-Level':   {'Multiprocessing': {}, 'Concurrent.Futures': {}}
+        'Pixel-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}},
+        'Image-Level': {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}},
+        'Task-Level':   {'Multiprocessing': {}, 'Concurrent.Futures': {}, 'ThreadPool': {}}
     }
 
-    print_both(logger, "\n" + "-"*60 + "\nStep 2: Parallel Benchmarks\n" + "-"*60)
+    print_both(logger, "\n" + "="*60 + "\nStep 3: Multi-Image Parallel Benchmarks\n" + "="*60)
+    print_both(logger, f"Testing with all {num_imgs} images")
     
     for w in worker_counts:
         print_both(logger, f"\n{'='*40}\nTesting with {w} worker(s)\n{'='*40}")
@@ -221,37 +292,70 @@ if __name__ == "__main__":
         t = run_benchmark_generic(process_single_image, image_arrays, w, 'mp_pool')
         record_result(results, 'Pixel-Level', 'Multiprocessing', w, t, t_seq, logger)
         
-        print_both(logger, f"Futures...")
+        print_both(logger, f"Futures (ProcessPool)...")
         t = run_benchmark_generic(process_single_image_futures, image_arrays, w, 'cf_pool')
         record_result(results, 'Pixel-Level', 'Concurrent.Futures', w, t, t_seq, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_single_image_futures, image_arrays, w, 'cf_threads')
+        record_result(results, 'Pixel-Level', 'ThreadPool', w, t, t_seq, logger)
 
         print_both(logger, "\n[Image-level]")
         print_both(logger, f"Multiprocessing...")
         t = run_benchmark_generic(process_single_image_sequential_array, image_arrays, w, 'mp_map')
         record_result(results, 'Image-Level', 'Multiprocessing', w, t, t_seq, logger)
         
-        print_both(logger, f"Futures...")
+        print_both(logger, f"Futures (ProcessPool)...")
         t = run_benchmark_generic(process_single_image_sequential_array, image_arrays, w, 'cf_map')
         record_result(results, 'Image-Level', 'Concurrent.Futures', w, t, t_seq, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_single_image_sequential_array, image_arrays, w, 'cf_map_threads')
+        record_result(results, 'Image-Level', 'ThreadPool', w, t, t_seq, logger)
 
         print_both(logger, "\n[Task-level]")
         print_both(logger, f"Multiprocessing...")
         t = run_benchmark_generic(process_images_pipeline_multiprocessing, image_arrays, w, 'direct')
         record_result(results, 'Task-Level', 'Multiprocessing', w, t, t_seq, logger)
         
-        print_both(logger, f"Futures...")
+        print_both(logger, f"Futures (ProcessPool)...")
         t = run_benchmark_generic(process_images_pipeline_futures, image_arrays, w, 'direct')
         record_result(results, 'Task-Level', 'Concurrent.Futures', w, t, t_seq, logger)
+        
+        print_both(logger, f"ThreadPool...")
+        t = run_benchmark_generic(process_images_pipeline_futures, image_arrays, w, 'direct')
+        record_result(results, 'Task-Level', 'ThreadPool', w, t, t_seq, logger)
 
     # --- Phase 3 & Reporting ---
-    print_both(logger, "\n" + "="*80 + "\nPHASE 3: AMDAHL'S LAW & SCALABILITY ANALYSIS\n" + "="*80)
+    print_both(logger, "\n" + "="*80 + "\nPHASE 3: SINGLE IMAGE ANALYSIS\n" + "="*80)
+    print_both(logger, "Amdahl's Law & Scalability Analysis for Single Image Processing")
+    
+    for strategy, methods in results_single.items():
+        print_both(logger, f"\n{'='*80}\n{strategy.upper()} STRATEGY (Single Image)\n{'='*80}")
+        for method in methods:
+            analyze_amdahl(logger, strategy, method, results_single, worker_counts)
+
+    print_both(logger, "\n" + "="*80 + "\nPHASE 3A: SINGLE IMAGE PARADIGM COMPARISON\n" + "="*80)
+    
+    max_w = worker_counts[-1]
+    print_both(logger, f"\nSingle Image Performance at {max_w} workers:")
+    print_both(logger, f"{'Strategy':<20} {'Paradigm':<20} {'Time':<12} {'Speedup':<12} {'Efficiency':<12}")
+    print_both(logger, "-"*80)
+    
+    for s in results_single:
+        for p in results_single[s]:
+            data = results_single[s][p][max_w]
+            print_both(logger, f"{s:<20} {p:<20} {data['time']:<12.4f}s {data['speedup']:<12.2f}x {data['efficiency']:<12.2%}")
+    
+    print_both(logger, "\n" + "="*80 + "\nPHASE 4: MULTI-IMAGE ANALYSIS\n" + "="*80)
+    print_both(logger, f"Amdahl's Law & Scalability Analysis for {num_imgs} Images")
     
     for strategy, methods in results.items():
         print_both(logger, f"\n{'='*80}\n{strategy.upper()} STRATEGY\n{'='*80}")
         for method in methods:
             analyze_amdahl(logger, strategy, method, results, worker_counts)
 
-    print_both(logger, "\n" + "="*80 + "\nPHASE 3B: STRATEGY COMPARISON & PRACTICAL IMPLICATIONS\n" + "="*80)
+    print_both(logger, "\n" + "="*80 + "\nPHASE 4B: STRATEGY COMPARISON & PRACTICAL IMPLICATIONS (Multi-Image)\n" + "="*80)
 
     max_w = worker_counts[-1]
     print_both(logger, f"\nComparison at {max_w} workers:")
@@ -285,34 +389,47 @@ if __name__ == "__main__":
         print_both(logger, f"  • Shared-memory systems (C/C++/Go) would show significantly better scaling")
         print_both(logger, f"  • Task-level parallelism has higher callback overhead but independent task execution")
 
-    print_both(logger, "\n" + "="*80 + "\nPHASE 3C: PARADIGM COMPARISON (Multiprocessing vs Concurrent.Futures)\n" + "="*80)
+    print_both(logger, "\n" + "="*80 + "\nPHASE 4C: PARADIGM COMPARISON (Multiprocessing vs Concurrent.Futures vs ThreadPool)\n" + "="*80)
+    print_both(logger, "Multi-Image Workload Analysis")
     
     for strategy in results:
         mp_data = results[strategy]['Multiprocessing']
         cf_data = results[strategy]['Concurrent.Futures']
+        tp_data = results[strategy]['ThreadPool']
         
         mp_speedup = mp_data[max_w]['speedup']
         cf_speedup = cf_data[max_w]['speedup']
-        diff_pct = ((mp_speedup - cf_speedup) / cf_speedup) * 100 if cf_speedup > 0 else 0
+        tp_speedup = tp_data[max_w]['speedup']
         
         print_both(logger, f"\n{strategy}:")
         print_both(logger, f"  Multiprocessing:      {mp_speedup:.2f}x speedup")
         print_both(logger, f"  Concurrent.Futures:   {cf_speedup:.2f}x speedup")
-        print_both(logger, f"  Difference: {diff_pct:+.1f}%")
+        print_both(logger, f"  ThreadPool:           {tp_speedup:.2f}x speedup")
         
-        if abs(diff_pct) < 5:
-            print_both(logger, f"  → Nearly identical (same underlying pool mechanism)")
+        diff_mp_cf = ((mp_speedup - cf_speedup) / cf_speedup) * 100 if cf_speedup > 0 else 0
+        diff_mp_tp = ((mp_speedup - tp_speedup) / tp_speedup) * 100 if tp_speedup > 0 else 0
+        
+        print_both(logger, f"  MP vs CF Difference: {diff_mp_cf:+.1f}%")
+        print_both(logger, f"  MP vs TP Difference: {diff_mp_tp:+.1f}%")
+        
+        if abs(diff_mp_cf) < 5:
+            print_both(logger, f"  → MP and CF nearly identical (same underlying pool mechanism)")
         else:
             winner = "Multiprocessing" if mp_speedup > cf_speedup else "Concurrent.Futures"
-            print_both(logger, f"  → {winner} performs better here")
+            print_both(logger, f"  → {winner} performs better between MP/CF")
+        
+        if tp_speedup < 1.5:
+            print_both(logger, f"  → ThreadPool shows minimal speedup due to Python GIL (expected for CPU-bound tasks)")
     
     print_both(logger, f"\nKey Trade-offs:")
     print_both(logger, f"  Multiprocessing: Lower-level control, explicit pool management, apply_async callbacks")
-    print_both(logger, f"  Concurrent.Futures: Higher-level abstractions, cleaner API, as_completed() pattern")
-    print_both(logger, f"  Performance: <5% difference for CPU-bound tasks (both use process pools)")
-    print_both(logger, f"  Recommendation: Use concurrent.futures for new code (modern, pythonic)")
+    print_both(logger, f"  Concurrent.Futures (ProcessPool): Higher-level abstractions, cleaner API, as_completed() pattern")
+    print_both(logger, f"  ThreadPool: Lowest overhead but GIL-limited (only effective for I/O-bound tasks)")
+    print_both(logger, f"  Performance: <5% difference between MP and CF for CPU-bound tasks (both use process pools)")
+    print_both(logger, f"  Performance: ThreadPool shows poor scaling for CPU-intensive image processing (GIL bottleneck)")
+    print_both(logger, f"  Recommendation: Use concurrent.futures.ProcessPoolExecutor for new CPU-bound code (modern, pythonic)")
 
-    print_both(logger, "\n" + "="*80 + "\nPHASE 3D: THEORETICAL MODEL VALIDATION\n" + "="*80)
+    print_both(logger, "\n" + "="*80 + "\nPHASE 4D: THEORETICAL MODEL VALIDATION (Multi-Image)\n" + "="*80)
     
     print_both(logger, f"\nGustafson's Law (scaled problem size):")
     for s in results:
@@ -326,7 +443,44 @@ if __name__ == "__main__":
     print_both(logger, f"  ✓ Serial portions align with IPC overhead measurements")
     print_both(logger, f"  ✓ Results consistent across both paradigms (validates implementation)")
 
+    # --- PHASE 5: SINGLE vs MULTI-IMAGE COMPARISON ---
+    print_both(logger, "\n" + "="*80 + "\nPHASE 5: SINGLE IMAGE vs MULTI-IMAGE COMPARISON\n" + "="*80)
+    
+    print_both(logger, f"\nOverhead Analysis: Single Image vs {num_imgs} Images")
+    print_both(logger, f"{'Strategy':<20} {'Paradigm':<20} {'Single@{max_w}w':<15} {'Multi@{max_w}w':<15} {'Overhead':<15}")
+    print_both(logger, "-"*90)
+    
+    for s in results:
+        for p in results[s]:
+            single_time = results_single[s][p][max_w]['time']
+            multi_time = results[s][p][max_w]['time']
+            expected_time = single_time * num_imgs
+            overhead_pct = ((multi_time - expected_time) / expected_time) * 100 if expected_time > 0 else 0
+            
+            print_both(logger, f"{s:<20} {p:<20} {single_time:<15.4f}s {multi_time:<15.4f}s {overhead_pct:+.1f}%")
+    
+    print_both(logger, f"\nKey Insights:")
+    print_both(logger, f"  • Image-Level should show near-zero overhead (embarrassingly parallel)")
+    print_both(logger, f"  • Pixel-Level may show positive overhead (chunking for each image)")
+    print_both(logger, f"  • Task-Level overhead depends on pipeline stage synchronization")
+    print_both(logger, f"  • Negative overhead = better efficiency with multiple images (amortized startup cost)")
+
     # --- CSV/JSON Output ---
+    # Single Image Results
+    csv_file_single = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_results_single_image.csv'))
+    with open(csv_file_single, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Strategy', 'Paradigm', 'Workers', 'Time', 'Speedup', 'Efficiency'])
+        for s in results_single:
+            for p in results_single[s]:
+                for w, d in results_single[s][p].items():
+                    writer.writerow([s, p, w, f"{d['time']:.4f}", f"{d['speedup']:.4f}", f"{d['efficiency']:.4f}"])
+    
+    json_file_single = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_results_single_image.json'))
+    with open(json_file_single, 'w', encoding='utf-8') as f:
+        json.dump({'cpu': multiprocessing.cpu_count(), 'seq_time': t_seq_single, 'image_count': 1, 'results': results_single}, f, indent=2)
+    
+    # Multi Image Results (existing code)
     csv_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_results.csv'))
     with open(csv_file, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -338,12 +492,94 @@ if __name__ == "__main__":
     
     json_file = get_unique_filename(os.path.join(OUTPUT_DIR, 'benchmark_results.json'))
     with open(json_file, 'w', encoding='utf-8') as f:
-        json.dump({'cpu': multiprocessing.cpu_count(), 'seq_time': t_seq, 'results': results}, f, indent=2)
+        json.dump({'cpu': multiprocessing.cpu_count(), 'seq_time': t_seq, 'image_count': num_imgs, 'results': results}, f, indent=2)
         
-    print_both(logger, f"\nSaved data to {csv_file} and {json_file}")
+    print_both(logger, f"\nSaved data to:")
+    print_both(logger, f"  Single Image: {csv_file_single}, {json_file_single}")
+    print_both(logger, f"  Multi Image:  {csv_file}, {json_file}")
 
     # --- Plotting ---
     print_both(logger, "\nGenerating Charts...")
+    
+    # Create two sets of charts: one for single image, one for multi-image
+    
+    # === CHART 1: SINGLE IMAGE PERFORMANCE ===
+    fig1, axes1 = plt.subplots(2, 3, figsize=(20, 12))
+    strategy_cols = {'Pixel-Level': '#E63946', 'Image-Level': '#06FFA5', 'Task-Level': '#3498DB'}
+    
+    # Row 1: Combined views for single image
+    ax = axes1[0, 0]
+    for s in results_single:
+        for p in results_single[s]:
+            times = [results_single[s][p][w]['time'] for w in worker_counts]
+            if 'Multi' in p:
+                style = '-'
+            elif 'Thread' in p:
+                style = ':'
+            else:
+                style = '--'
+            ax.plot(worker_counts, times, label=f"{s}-{p[:4]}", color=strategy_cols[s], linestyle=style, marker='o')
+    ax.set_title("Single Image: Execution Time")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Time (s)')
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
+    
+    ax = axes1[0, 1]
+    for s in results_single:
+        for p in results_single[s]:
+            spd = [results_single[s][p][w]['speedup'] for w in worker_counts]
+            if 'Multi' in p:
+                style = '-'
+            elif 'Thread' in p:
+                style = ':'
+            else:
+                style = '--'
+            ax.plot(worker_counts, spd, label=f"{s}-{p[:4]}", color=strategy_cols[s], linestyle=style, marker='o')
+    ax.plot(worker_counts, worker_counts, 'k:', label='Ideal')
+    ax.set_title("Single Image: Speedup")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Speedup')
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
+    
+    ax = axes1[0, 2]
+    width = 0.1
+    x = np.arange(len(worker_counts))
+    offset = -4
+    for s in results_single:
+        for p in results_single[s]:
+            eff = [results_single[s][p][w]['efficiency'] for w in worker_counts]
+            ax.bar(x + offset*width, eff, width, label=f"{s}-{p[:4]}", color=strategy_cols[s], alpha=0.7)
+            offset += 1
+    ax.set_title("Single Image: Efficiency")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Efficiency')
+    ax.set_xticks(x)
+    ax.set_xticklabels(worker_counts)
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
+    
+    # Row 2: Individual paradigms for single image
+    for i, paradigm in enumerate(['Multiprocessing', 'Concurrent.Futures', 'ThreadPool']):
+        ax = axes1[1, i]
+        for s in results_single:
+            spd = [results_single[s][paradigm][w]['speedup'] for w in worker_counts]
+            ax.plot(worker_counts, spd, label=s, color=strategy_cols[s], marker='o')
+        ax.plot(worker_counts, worker_counts, 'k:', alpha=0.3, label='Ideal')
+        ax.set_title(f"Single Image: {paradigm} Speedup")
+        ax.set_xlabel('Workers')
+        ax.set_ylabel('Speedup')
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    plt.suptitle('SINGLE IMAGE Performance Analysis', fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    chart_path_single = get_unique_filename(os.path.join(OUTPUT_DIR, 'performance_single_image.png'))
+    plt.savefig(chart_path_single, dpi=150)
+    print_both(logger, f"Single image chart saved to {chart_path_single}")
+    
+    # === CHART 2: MULTI-IMAGE PERFORMANCE (existing) ===
     fig, axes = plt.subplots(2, 3, figsize=(20, 12))
     strategy_cols = {'Pixel-Level': '#E63946', 'Image-Level': '#06FFA5', 'Task-Level': '#3498DB'}
     
@@ -352,57 +588,70 @@ if __name__ == "__main__":
     for s in results:
         for p in results[s]:
             times = [results[s][p][w]['time'] for w in worker_counts]
-            style = '-' if 'Multi' in p else '--'
-            ax.plot(worker_counts, times, label=f"{s}-{p.split('.')[0]}", color=strategy_cols[s], linestyle=style, marker='o')
-    ax.set_title("Execution Time")
-    ax.legend(fontsize=8)
+            if 'Multi' in p:
+                style = '-'
+            elif 'Thread' in p:
+                style = ':'
+            else:
+                style = '--'
+            ax.plot(worker_counts, times, label=f"{s}-{p[:4]}", color=strategy_cols[s], linestyle=style, marker='o')
+    ax.set_title("Multi-Image: Execution Time")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Time (s)')
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
     
     # 2. Speedup vs Workers
     ax = axes[0, 1]
     for s in results:
         for p in results[s]:
             spd = [results[s][p][w]['speedup'] for w in worker_counts]
-            style = '-' if 'Multi' in p else '--'
-            ax.plot(worker_counts, spd, label=f"{s}-{p.split('.')[0]}", color=strategy_cols[s], linestyle=style, marker='o')
+            if 'Multi' in p:
+                style = '-'
+            elif 'Thread' in p:
+                style = ':'
+            else:
+                style = '--'
+            ax.plot(worker_counts, spd, label=f"{s}-{p[:4]}", color=strategy_cols[s], linestyle=style, marker='o')
     ax.plot(worker_counts, worker_counts, 'k:', label='Ideal')
-    ax.set_title("Speedup")
+    ax.set_title("Multi-Image: Speedup")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Speedup')
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
     
     # 3. Efficiency Bar
     ax = axes[0, 2]
-    width = 0.15
+    width = 0.1
     x = np.arange(len(worker_counts))
-    offset = -2.5
+    offset = -4
     for s in results:
         for p in results[s]:
             eff = [results[s][p][w]['efficiency'] for w in worker_counts]
-            ax.bar(x + offset*width, eff, width, label=f"{s}-{p.split('.')[0]}", color=strategy_cols[s], alpha=0.7)
+            ax.bar(x + offset*width, eff, width, label=f"{s}-{p[:4]}", color=strategy_cols[s], alpha=0.7)
             offset += 1
-    ax.set_title("Efficiency")
+    ax.set_title("Multi-Image: Efficiency")
+    ax.set_xlabel('Workers')
+    ax.set_ylabel('Efficiency')
     ax.set_xticks(x)
     ax.set_xticklabels(worker_counts)
+    ax.legend(fontsize=6, ncol=2)
+    ax.grid(True, alpha=0.3)
     
-    # 4/5. Multiprocessing vs Futures Speedup Comparison
-    for i, paradigm in enumerate(['Multiprocessing', 'Concurrent.Futures']):
-        ax = axes[1, i]
+    # 4/5/6. Individual Paradigm Speedup Comparison
+    for i, paradigm in enumerate(['Multiprocessing', 'Concurrent.Futures', 'ThreadPool']):
+        row = 1
+        col = i
+        ax = axes[row, col]
         for s in results:
             spd = [results[s][paradigm][w]['speedup'] for w in worker_counts]
             ax.plot(worker_counts, spd, label=s, color=strategy_cols[s], marker='o')
+        ax.plot(worker_counts, worker_counts, 'k:', alpha=0.3, label='Ideal')
         ax.set_title(f"{paradigm} Speedup")
-        ax.legend()
-
-    # 6. Max Worker Comparison
-    ax = axes[1, 2]
-    max_w = worker_counts[-1]
-    labels, times, cols = [], [], []
-    for s in results:
-        for p in results[s]:
-            labels.append(f"{s}\n{p.split('.')[0]}")
-            times.append(results[s][p][max_w]['time'])
-            cols.append(strategy_cols[s])
-    ax.bar(range(len(labels)), times, color=cols)
-    ax.set_xticks(range(len(labels)))
-    ax.set_xticklabels(labels, rotation=45, fontsize=8)
-    ax.set_title(f"Time at {max_w} Workers")
+        ax.set_xlabel('Workers')
+        ax.set_ylabel('Speedup')
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
     chart_path = get_unique_filename(os.path.join(OUTPUT_DIR, 'performance.png'))

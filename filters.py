@@ -305,3 +305,27 @@ def process_images_pipeline_futures(image_arrays, output_dir, num_workers):
                 if next_idx < len(PIPELINE_STAGES):
                     new_fut = executor.submit(execute_filter_task_array, (PIPELINE_STAGES[next_idx], result_data, img_idx, output_dir))
                     futures[new_fut] = (next_idx, img_idx)
+
+def process_images_pipeline_futures_threads(image_arrays, output_dir, num_workers):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+        futures = {}
+        for idx, img_array in enumerate(image_arrays):
+            futures[executor.submit(execute_filter_task_array, ('grayscale', img_array.copy(), idx, output_dir))] = (0, idx)
+
+        while futures:
+            done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
+            for fut in done:
+                stage_idx, img_idx = futures.pop(fut)
+                try:
+                    _, result_data = fut.result()
+                except Exception as e:
+                    print(f"Task failed for image {img_idx}: {e}")
+                    continue
+                
+                next_idx = stage_idx + 1
+                if next_idx < len(PIPELINE_STAGES):
+                    new_fut = executor.submit(execute_filter_task_array, (PIPELINE_STAGES[next_idx], result_data, img_idx, output_dir))
+                    futures[new_fut] = (next_idx, img_idx)
+
+
+                    
