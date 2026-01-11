@@ -40,7 +40,7 @@ mkdir -p output_images
 # Copy your .jpg images here
 ```
 #### Folder Structure Dependencies
-
+```bash
 your_folder/
 ├── benchmarks/
 │   ├── run_all.py
@@ -55,7 +55,7 @@ your_folder/
 ├── README.md
 └── .gitignore
 
-
+```
 **💡 Tip for GCP Deployment:**
 Upload `input_images.zip` to your GCP VM and extract. It contains 50 images as a subset:
 ```bash
