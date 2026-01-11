@@ -386,8 +386,10 @@ def menu_run_benchmark():
     start_time = get_time()
     
     try:
-        # Run the benchmark script
-        result = subprocess.run([sys.executable, script_name], check=True)
+        # Run the benchmark script with benchmarks/ as working directory
+        script_dir = os.path.dirname(script_name)
+        script_file = os.path.basename(script_name)
+        result = subprocess.run([sys.executable, script_file], check=True, cwd=script_dir if script_dir else '.')
         elapsed_time = get_time() - start_time
         
         print("\n" + "="*70)
